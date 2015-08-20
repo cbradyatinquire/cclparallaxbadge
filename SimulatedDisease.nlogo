@@ -1,7 +1,9 @@
-globals [first-sick]
+extensions [ table ]
+
+globals [first-sick interactions simticks   ]
 
 
-turtles-own [ id history simx simy first-infected-by first-infected-at-interaction ]
+turtles-own [ id interaction-history  simx simy first-infected-by first-infected-at-interaction interaction-table ]
 to setup
   ca
   set first-sick nobody
@@ -9,11 +11,12 @@ to setup
   [
    set color red
    set size 2
-   set history [] 
+   set interaction-history [] 
    set id (word "player" who)
    move-to one-of patches
    set first-infected-by nobody
    set first-infected-at-interaction -1
+   set interaction-table table:make
   ]
   reset-ticks
 end
@@ -21,36 +24,55 @@ end
 
 
 to go
-  ask turtles [ set color red set heading heading + 90 - random 181 ]
   ask turtles [ 
-    fd 2
-    if any? other turtles-here with [ color != blue ] [
-     let partner one-of other turtles-here
-     set color blue 
-     ask partner [ set color blue ]
-     display
-     let risk-factor random 10
-     interact partner risk-factor
-     ask partner 
-     [
-       interact myself risk-factor
-     ] 
-    ]
+    set color red 
+    set heading heading + 50 - random 101 
+    fd .6  
     set simx xcor
     set simy ycor
+  ]
+  if ticks mod 3 = 0 
+  [
+    ask turtles [ 
+      if any? other turtles-here with [ color != blue ] [
+        let partner one-of other turtles-here
+        set color blue 
+        ask partner [ set color blue ]
+        display
+        let risk-factor random 10
+        interact partner risk-factor
+        ask partner 
+        [
+          interact myself risk-factor
+        ]
+        set interactions interactions + 1 
+      ]
+    ]
   ]
   tick  
 end
 
 
 to interact [apartner arisk ]
-  set history lput (list [id] of apartner arisk ticks) history
+  ifelse (table:has-key? interaction-table [id] of apartner) 
+  [
+    let histwithpartner table:get interaction-table [id] of apartner
+    let instanceindex (length histwithpartner)
+    set histwithpartner lput (list [id] of apartner arisk ticks instanceindex) histwithpartner
+    table:put interaction-table  [id] of apartner  histwithpartner
+    set interaction-history lput (list [id] of apartner arisk ticks instanceindex) interaction-history
+  ]
+  [
+    let histwithpartner (list [id] of apartner arisk ticks 0) 
+    table:put interaction-table  [id] of apartner  (list histwithpartner)
+    set interaction-history lput (list [id] of apartner arisk ticks 0) interaction-history
+  ]
 end
 
 
 to replay-outbreak
   reset-perspective
-  ask turtles [ setxy simx simy  set first-infected-by nobody  set first-infected-at-interaction -1 ]
+  ask turtles [ setxy simx simy  set first-infected-by nobody  set first-infected-at-interaction (length interaction-history )  ]
   ask links [ die ]
   ask turtles [ set color red - 2 ]
   let max-tix ticks
@@ -58,37 +80,53 @@ to replay-outbreak
   
   let sick-ones no-turtles
   let other-sick-ones no-turtles
-  ask first-sick [ set first-infected-by self  set first-infected-at-interaction -1 ]
+  ask first-sick [ set first-infected-by self  set first-infected-at-interaction 0 ]
   ask first-sick [ 
-    foreach history [ let sturtles turtles with [ id = item 0 ? ] ask sturtles [ update-infected-by first-sick ] set other-sick-ones (turtle-set other-sick-ones sturtles) ] 
+    foreach interaction-history [ let sturtles turtles with [ id = item 0 ? ] ask sturtles [ update-infected-by first-sick 0] set other-sick-ones (turtle-set other-sick-ones sturtles) ] 
   ]
-  show "from first"
+  show (word "STARTING WITH TURTLE: " first-sick)
   show count other-sick-ones
   ask other-sick-ones [ set color green ]
-  ;wait delay
+  show (word "and " count turtles with [ color = green ] " are green")
+
   set sick-ones (turtle-set sick-ones other-sick-ones)
+  show sort sick-ones
   show "now going into loop"
   while [ any? other-sick-ones ]
   [
     set other-sick-ones no-turtles
+    show (word "Next round. sick ones are now: " sort sick-ones)
     ask sick-ones [ 
-      foreach history [ let sturtles turtles with [ id = item 0 ? and not member? self sick-ones ]  ask sturtles [ update-infected-by first-sick ] set other-sick-ones (turtle-set other-sick-ones sturtles) ] 
+      let index first-infected-at-interaction 
+      while [ index < length interaction-history ]
+      [
+        let inter item index interaction-history
+        let sturtles turtles with [ id = item 0 inter  ]  
+        ask sturtles [ update-infected-by myself (last inter)] 
+        set other-sick-ones (turtle-set other-sick-ones sturtles with [ not member? self sick-ones ]) 
+        set index index + 1
+      ]
     ]
     show count other-sick-ones
+    show sort other-sick-ones
     ask other-sick-ones [ set color green ]
-    
+    set sick-ones (turtle-set sick-ones other-sick-ones)  
   ]
   set sick-ones (turtle-set sick-ones first-sick)
-  user-message "ta-daaa"
+  ask first-sick [ set color green ]
+  show count turtles with [ color = green ]
+  ask sick-ones [ set color green ]
+  show (word "should be same as " count turtles with [ color = green ])
+  show "ta-daaa"
 end
 
-to update-infected-by [aturtle ]
-    let index length history - 1
-    while [ index > first-infected-at-interaction and index >= 0 ]
+to update-infected-by [aturtle encounternum]
+    let index length interaction-history - 1
+    while [ index >= 0 ] ;index > first-infected-at-interaction and index >= 0 ]
     [
-      let event item index history
+      let event item index interaction-history
       let ts turtles with [ id = item 0 event ]
-      if member? aturtle ts
+      if member? aturtle ts  and  (last event >= encounternum)  and index < first-infected-at-interaction
       [
          set first-infected-by aturtle
          set first-infected-at-interaction index
@@ -106,24 +144,24 @@ to replay-outbreak-strict-time
   let max-tix ticks
   if (first-sick = nobody) [ user-message "Select 'Patient Zero'\nThe first sick turtle" stop ]
   let sick-ones (turtle-set first-sick)
-  let theticks 0
-  while [ theticks <= max-tix ]
+  set simticks 0
+  while [ simticks <= max-tix ]
   [
-    ask sick-ones [ let newsicks get-interactions-at theticks  set sick-ones (turtle-set sick-ones newsicks)  ask newsicks [ create-link-with myself ] ]
+    ask sick-ones [ let newsicks get-interactions-at simticks  set sick-ones (turtle-set sick-ones newsicks)  ask newsicks [ create-link-with myself ] ]
     ask sick-ones [ set color green ]
-    set theticks theticks + 1
+    set simticks simticks + 1
     if (do-layout?) [ layout-radial sick-ones links first-sick ]
     wait delay
   ]
-  user-message "ta-da"
+  show "ta-da"
   if (do-layout?) [ layout-radial sick-ones links first-sick ]
 end
 
 
 to-report get-interactions-at [ tnum ]
   let aset no-turtles
-  foreach history [
-    if last ? = tnum [ set aset (turtle-set aset turtles with [ id = item 0 ? ]) ]
+  foreach interaction-history [
+    if last (butlast ?) = tnum [ set aset (turtle-set aset turtles with [ id = item 0 ? ]) ]
   ]
   report aset
 end
@@ -138,6 +176,23 @@ to choose-first-sick
    stop 
   ]
 end  
+
+
+to-report sim-sick-%
+  report 100 * ( count turtles with [ color = green ] / count turtles )
+end
+
+to-report sim-time
+  report simticks
+end
+
+
+
+to-report interacted-with-player-after [num time ]
+  let did false
+  
+  
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 351
@@ -167,10 +222,10 @@ ticks
 30.0
 
 BUTTON
-85
-98
-151
-131
+18
+34
+84
+67
 NIL
 setup
 NIL
@@ -184,12 +239,12 @@ NIL
 1
 
 BUTTON
-87
-167
-203
-200
+20
+103
+144
+136
 NIL
-every .1  [ go ]
+every .02  [ go ]
 T
 1
 T
@@ -201,15 +256,15 @@ NIL
 1
 
 SLIDER
-158
-100
-330
-133
+91
+36
+263
+69
 num-players
 num-players
 5
 100
-50
+100
 1
 1
 NIL
@@ -286,7 +341,7 @@ delay
 delay
 0
 .1
-0.05
+0
 .01
 1
 sec
@@ -299,7 +354,7 @@ SWITCH
 513
 do-layout?
 do-layout?
-1
+0
 1
 -1000
 
@@ -312,6 +367,114 @@ still working on disease propagation without timestamp
 11
 0.0
 1
+
+MONITOR
+21
+139
+143
+184
+NIL
+interactions
+17
+1
+11
+
+MONITOR
+145
+139
+297
+184
+turtles with no interactions
+count turtles with [ length interaction-history = 0 ]
+17
+1
+11
+
+PLOT
+91
+218
+291
+368
+number of interactions
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" "set-plot-x-range 0 (max (list 10 (max [length interaction-history] of turtles)))"
+PENS
+"default" 1.0 1 -16777216 true "" "histogram [ length interaction-history ] of turtles"
+
+MONITOR
+591
+493
+660
+538
+NIL
+sim-time
+17
+1
+11
+
+MONITOR
+661
+493
+742
+538
+NIL
+sim-sick-%
+17
+1
+11
+
+MONITOR
+745
+494
+857
+539
+sim-non-sick-%
+100 - sim-sick-%
+1
+1
+11
+
+BUTTON
+145
+585
+311
+618
+show history of which
+clear-output\nlet tp [ interaction-history ] of turtle which\noutput-print tp
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+INPUTBOX
+313
+561
+468
+621
+which
+41
+1
+0
+Number
+
+OUTPUT
+477
+544
+1293
+623
+12
 
 @#$#@#$#@
 ## WHAT IS IT?
