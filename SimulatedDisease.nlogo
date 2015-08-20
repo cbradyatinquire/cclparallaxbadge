@@ -80,22 +80,23 @@ to replay-outbreak
   
   let sick-ones no-turtles
   let other-sick-ones no-turtles
+  
   ask first-sick [ set first-infected-by self  set first-infected-at-interaction 0 ]
   ask first-sick [ 
     foreach interaction-history [ let sturtles turtles with [ id = item 0 ? ] ask sturtles [ update-infected-by first-sick 0] set other-sick-ones (turtle-set other-sick-ones sturtles) ] 
   ]
-  show (word "STARTING WITH TURTLE: " first-sick)
-  show count other-sick-ones
+  ;show (word "STARTING WITH TURTLE: " first-sick)
+  ;show count other-sick-ones
   ask other-sick-ones [ set color green ]
-  show (word "and " count turtles with [ color = green ] " are green")
+  ;show (word "and " count turtles with [ color = green ] " are green")
 
   set sick-ones (turtle-set sick-ones other-sick-ones)
-  show sort sick-ones
-  show "now going into loop"
+  ;show sort sick-ones
+  ;show "now going into loop"
   while [ any? other-sick-ones ]
   [
     set other-sick-ones no-turtles
-    show (word "Next round. sick ones are now: " sort sick-ones)
+    ;show (word "Next round. sick ones are now: " sort sick-ones)
     ask sick-ones [ 
       let index first-infected-at-interaction 
       while [ index < length interaction-history ]
@@ -107,17 +108,17 @@ to replay-outbreak
         set index index + 1
       ]
     ]
-    show count other-sick-ones
-    show sort other-sick-ones
+    ;show count other-sick-ones
+    ;show sort other-sick-ones
     ask other-sick-ones [ set color green ]
     set sick-ones (turtle-set sick-ones other-sick-ones)  
   ]
   set sick-ones (turtle-set sick-ones first-sick)
-  ask first-sick [ set color green ]
-  show count turtles with [ color = green ]
+  ;ask first-sick [ set color green ]
+  ;show count turtles with [ color = green ]
   ask sick-ones [ set color green ]
-  show (word "should be same as " count turtles with [ color = green ])
-  show "ta-daaa"
+  ;show (word "should be same as " count turtles with [ color = green ])
+  ;show "ta-daaa"
 end
 
 to update-infected-by [aturtle encounternum]
@@ -153,7 +154,7 @@ to replay-outbreak-strict-time
     if (do-layout?) [ layout-radial sick-ones links first-sick ]
     wait delay
   ]
-  show "ta-da"
+  ;show "ta-da"
   if (do-layout?) [ layout-radial sick-ones links first-sick ]
 end
 
@@ -354,19 +355,9 @@ SWITCH
 513
 do-layout?
 do-layout?
-0
+1
 1
 -1000
-
-TEXTBOX
-54
-515
-204
-557
-still working on disease propagation without timestamp
-11
-0.0
-1
 
 MONITOR
 21
@@ -442,11 +433,11 @@ sim-non-sick-%
 11
 
 BUTTON
-145
-585
-311
-618
-show history of which
+110
+561
+309
+622
+show interaction history of which
 clear-output\nlet tp [ interaction-history ] of turtle which\noutput-print tp
 NIL
 1
@@ -470,10 +461,10 @@ which
 Number
 
 OUTPUT
-477
-544
-1293
-623
+472
+560
+1288
+622
 12
 
 @#$#@#$#@
