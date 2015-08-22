@@ -6,14 +6,17 @@ globals [first-sick interactions simticks   ]
 turtles-own [ id interaction-history  simx simy first-infected-by first-infected-at-interaction interaction-table ]
 to setup
   ca
+  set-default-shape turtles "participant"
   set first-sick nobody
   crt num-players
   [
-   set color red
-   set size 2
+   set color green 
+   set size 3
    set interaction-history [] 
    set id (word "player" who)
    move-to one-of patches
+   set simx xcor
+   set simy ycor
    set first-infected-by nobody
    set first-infected-at-interaction -1
    set interaction-table table:make
@@ -25,7 +28,8 @@ end
 
 to go
   ask turtles [ 
-    set color red 
+    set color green 
+    set size 3
     set heading heading + 50 - random 101 
     fd .6  
     set simx xcor
@@ -34,10 +38,11 @@ to go
   if ticks mod 3 = 0 
   [
     ask turtles [ 
-      if any? other turtles-here with [ color != blue ] [
+      if any? other turtles-here with [ color != violet ] [
         let partner one-of other turtles-here
-        set color blue 
-        ask partner [ set color blue ]
+        set color violet 
+        set size 3.5
+        ask partner [ set color violet ]
         display
         let risk-factor random 10
         interact partner risk-factor
@@ -74,7 +79,7 @@ to replay-outbreak
   reset-perspective
   ask turtles [ setxy simx simy  set first-infected-by nobody  set first-infected-at-interaction (length interaction-history )  ]
   ask links [ die ]
-  ask turtles [ set color red - 2 ]
+  ask turtles [ set color green  ]
   let max-tix ticks
   if (first-sick = nobody) [ user-message "Select 'Patient Zero'\nThe first sick turtle" stop ]
   
@@ -87,7 +92,7 @@ to replay-outbreak
   ]
   ;show (word "STARTING WITH TURTLE: " first-sick)
   ;show count other-sick-ones
-  ask other-sick-ones [ set color green ]
+  ask other-sick-ones [ set color red ]
   ;show (word "and " count turtles with [ color = green ] " are green")
 
   set sick-ones (turtle-set sick-ones other-sick-ones)
@@ -116,7 +121,7 @@ to replay-outbreak
   set sick-ones (turtle-set sick-ones first-sick)
   ;ask first-sick [ set color green ]
   ;show count turtles with [ color = green ]
-  ask sick-ones [ set color green ]
+  ask sick-ones [ set color red ]
   ;show (word "should be same as " count turtles with [ color = green ])
   ;show "ta-daaa"
 end
@@ -141,7 +146,7 @@ to replay-outbreak-strict-time
   reset-perspective
   ask turtles [ setxy simx simy ]
   ask links [ die ]
-  ask turtles [ set color red - 2 ]
+  ask turtles [ set color green  ]
   let max-tix ticks
   if (first-sick = nobody) [ user-message "Select 'Patient Zero'\nThe first sick turtle" stop ]
   let sick-ones (turtle-set first-sick)
@@ -149,7 +154,7 @@ to replay-outbreak-strict-time
   while [ simticks <= max-tix ]
   [
     ask sick-ones [ let newsicks get-interactions-at simticks  set sick-ones (turtle-set sick-ones newsicks)  ask newsicks [ create-link-with myself ] ]
-    ask sick-ones [ set color green ]
+    ask sick-ones [ set color red ]
     set simticks simticks + 1
     if (do-layout?) [ layout-radial sick-ones links first-sick ]
     wait delay
@@ -173,14 +178,15 @@ to choose-first-sick
     [
      set first-sick one-of turtles with [ distancexy mouse-xcor mouse-ycor < 1 ]
      watch first-sick
+     set which [ who ] of first-sick
+     stop
     ]
-   stop 
   ]
 end  
 
 
 to-report sim-sick-%
-  report 100 * ( count turtles with [ color = green ] / count turtles )
+  report 100 * ( count turtles with [ color = red ] / count turtles )
 end
 
 to-report sim-time
@@ -189,10 +195,9 @@ end
 
 
 
-to-report interacted-with-player-after [num time ]
-  let did false
-  
-  
+to return-to-sim
+  ask turtles [ setxy simx simy  set color green set size 3]
+  ask links [ die ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -244,8 +249,8 @@ BUTTON
 103
 144
 136
-NIL
-every .02  [ go ]
+run sim
+every sim-delay  [ go ]
 T
 1
 T
@@ -265,7 +270,7 @@ num-players
 num-players
 5
 100
-100
+15
 1
 1
 NIL
@@ -293,7 +298,7 @@ BUTTON
 393
 198
 426
-NIL
+choose first sick
 choose-first-sick
 T
 1
@@ -342,7 +347,7 @@ delay
 delay
 0
 .1
-0
+0.01
 .01
 1
 sec
@@ -355,7 +360,7 @@ SWITCH
 513
 do-layout?
 do-layout?
-1
+0
 1
 -1000
 
@@ -438,7 +443,7 @@ BUTTON
 309
 622
 show interaction history of which
-clear-output\nlet tp [ interaction-history ] of turtle which\noutput-print tp
+clear-output\nwatch turtle which\nlet tp [ interaction-history ] of turtle which\noutput-print tp
 NIL
 1
 T
@@ -455,7 +460,7 @@ INPUTBOX
 468
 621
 which
-41
+14
 1
 0
 Number
@@ -466,6 +471,55 @@ OUTPUT
 1288
 622
 12
+
+BUTTON
+5
+523
+146
+556
+NIL
+reset-perspective
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+SLIDER
+157
+106
+329
+139
+sim-delay
+sim-delay
+0
+.1
+0.01
+.01
+1
+NIL
+HORIZONTAL
+
+BUTTON
+939
+503
+1058
+536
+NIL
+return-to-sim
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -670,12 +724,7 @@ true
 0
 Line -7500403 true 150 0 150 150
 
-pentagon
-false
-0
-Polygon -7500403 true true 150 15 15 120 60 285 240 285 285 120
-
-person
+participant
 false
 0
 Circle -7500403 true true 110 5 80
@@ -683,6 +732,15 @@ Polygon -7500403 true true 105 90 120 195 90 285 105 300 135 300 150 225 165 300
 Rectangle -7500403 true true 127 79 172 94
 Polygon -7500403 true true 195 90 240 150 225 180 165 105
 Polygon -7500403 true true 105 90 60 150 75 180 135 105
+Rectangle -13345367 true false 135 104 165 149
+Rectangle -1 true false 143 110 158 121
+Polygon -16777216 true false 124 91 128 85 140 103 126 92 126 92
+Polygon -16777216 true false 172 89 179 91 165 104
+
+pentagon
+false
+0
+Polygon -7500403 true true 150 15 15 120 60 285 240 285 285 120
 
 plant
 false
