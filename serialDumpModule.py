@@ -1,4 +1,4 @@
-import serial, sys, glob, time
+import serial, sys, glob, time, os
 
 ### HELPER FUNCTIONS ###
 def serial_ports():
@@ -19,6 +19,9 @@ def serial_ports():
     else:
         raise EnvironmentError('Unsupported platform')
 
+    return ports
+
+    # Checking the ports already sends a reset signal.
     result = []
     for port in ports:
         try:
@@ -35,38 +38,48 @@ def stripped(string):
 
 ### MAIN ###
 ports = serial_ports()
-# List ports
-print 'Listing ports fyi: ' + str(ports)
 while True:
-    time.sleep(1)
-    print 'Waiting for available port.'
+    os.system('cls' if os.name == 'nt' else 'clear')
+    raw_input('Press Enter to begin connection.')
+    for p in ports:
+        try:
+            # Try opening ports, if we find one, send reset signal
+            port = serial.Serial(p, 115200, timeout=1)
+            port.close()
+            break
+        except:
+            # Keep querying until we find a port
+            pass
     try:
-        # Try opening port dynamically
-        port = serial.Serial(ports[0], 115200, timeout=1)
+        port.isOpen()
     except:
-        # Keep querying the port until it is available
-        time.sleep(1)
+        raw_input('Unable to find a badge, press Enter to continue.')
         continue
     # Wait until we receive handshake
-    print 'Port opened, waiting for handshake.'
+    print 'Port opened, hold OSH on your badge.'
+    port.open()
     while stripped(port.readline()) != 'Propeller':
         time.sleep(1)
-    print 'Received handshake from Propeller.'
+    print 'Detected badge.'
 
     # Send handshake to ensure connection
-    print 'Sending handshake to Propeller, preparing for data transfer.'
+    print 'Preparing data transfer.'
     port.write('H0st\n')
     time.sleep(3)
 
     # Initiate data transfer
     print 'Pulling data.'
     # Flush 5 bytes since H0st is being echoed (workaround)
-    port.read(5)
+    port.read(5)    
     
+    # Get records, if no records are found, it won't dump
     num_records = ord(port.readline()[0])
+    # For num_records, since Propeller cannot send an int yet, we send a byte
+    # So we can have a maximum of 255 interactions, else it'll overflow
     if num_records == 1:
-        print 'No records found, closing port.'
+        raw_input('No records found, press Enter to exit.')
         port.close()
+        # time.sleep(5)
         continue
 
     names = []
@@ -76,14 +89,22 @@ while True:
         names.append(stripped(port.readline()))
         emails.append(stripped(port.readline()))
 
-    print 'Dumping to file.'
-    f = open('data.txt', 'w')
+    # Dump to file
+    print 'Dumping interactions.'
+    f = open(names[0] + '-' + emails[0] + '.txt', 'w')
     f.write('Interaction record for ' + names[0] + ' - ' + emails[0] + ':\n\n')
     for i in xrange(1, num_records):
         f.write(names[i] + ' -> ' + emails[i] + '\n')
     f.close()
 
-    print 'Dump complete, closing port.'
+    raw_input('Dump complete, press Enter to exit.')
     port.close()
+    # time.sleep(5)
 
 ### MAIN ###
+
+### NOTES ###
+
+### TODO ###
+# -Better way to ensure disconnection, wait until user disconnects then find
+# a way to send a reset signal.
