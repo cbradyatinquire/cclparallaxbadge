@@ -93,6 +93,9 @@ to replay-outbreak
   ;show (word "STARTING WITH TURTLE: " first-sick)
   ;show count other-sick-ones
   ask other-sick-ones [ set color red ]
+  display
+  set message (word count other-sick-ones " infected by Patient Zero")
+  wait delay * 5
   ;show (word "and " count turtles with [ color = green ] " are green")
 
   set sick-ones (turtle-set sick-ones other-sick-ones)
@@ -115,7 +118,10 @@ to replay-outbreak
     ]
     ;show count other-sick-ones
     ;show sort other-sick-ones
-    ask other-sick-ones [ set color green ]
+    ask other-sick-ones [ set color red ]
+    display
+    wait delay * 5
+    set message (word count other-sick-ones " infected in the next round")
     set sick-ones (turtle-set sick-ones other-sick-ones)  
   ]
   set sick-ones (turtle-set sick-ones first-sick)
@@ -498,7 +504,7 @@ sim-delay
 sim-delay
 0
 .1
-0.01
+0.04
 .01
 1
 NIL
@@ -734,7 +740,7 @@ Polygon -7500403 true true 195 90 240 150 225 180 165 105
 Polygon -7500403 true true 105 90 60 150 75 180 135 105
 Rectangle -13345367 true false 135 104 165 149
 Rectangle -1 true false 143 110 158 121
-Polygon -16777216 true false 124 91 128 85 140 103 126 92 126 92
+Polygon -16777216 true false 124 91 128 85 140 103 126 92
 Polygon -16777216 true false 172 89 179 91 165 104
 
 pentagon
